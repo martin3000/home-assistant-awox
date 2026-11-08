@@ -69,7 +69,7 @@ Do you have [HACS](https://hacs.xyz/) installed?
 1. Add **AwoX** as custom repository.
    1. Go to: `HACS` -> `Integrations` -> Click menu in right top -> Custom repositories
    1. A modal opens
-   1. Fill https://github.com/fsaris/home-assistant-awox in the input in the footer of the modal
+   1. Fill https://github.com/martin3000/home-assistant-awox in the input in the footer of the modal
    1. Select `integration` in category select box
    1. Click **Add**
 1. Search integrations for **AwoX**
