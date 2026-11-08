@@ -30,7 +30,18 @@ Control your AwoX, Eglo, ... bluetooth lights from Home Assistant
   - Eglo Crossling RGBW Spot (`ETriSpot 85` HW 4.31, firmware 2.2.6)
   - Eglo Crossling RGBW Spot (`ESpot 170` HW 4.30, firmware 2.2.6)
   - Eglo Connect Plug Plus (on/off support over Bluetooth)
-- `.ble.zigbee.light.*` are **not** supported. Recommended to use a ZigBee integration like https://www.zigbee2mqtt.io/supported-devices/#v=EGLO,Eglo,AwoX
+- EGLO **connect.Z** (Zigbee + Bluetooth) devices of type `.ble.zigbee.light.*`, controlled over Bluetooth  
+  _(the Zigbee side keeps working in parallel, e.g. with ZHA or Zigbee2MQTT)_  
+    
+  **Tested with following lights:**  
+  - `EGLO-ZM-RGB-TW` ceiling lights (HW v4.60, firmware v3.0.2): on/off, brightness, color temperature, RGB color  
+    
+  **How it differs from `ble.tlmesh` devices:**  
+  - Uses Home Assistant's Bluetooth integration, so local adapters and ESPHome Bluetooth proxies (with active connections) work; the best one is picked automatically per light  
+  - Status is read from the lights' Bluetooth advertisements, without a connection  
+  - A light only executes commands while connected directly, so **every light must be in range of a connectable adapter or proxy** (commands are not relayed through the mesh)  
+  - The connection is dropped 5 s after the last command, because a held Bluetooth connection blocks the light's Zigbee side  
+  - Presets, sequences and mesh changes are not supported
 - `.wifi.light.*` are currently **not** supported see https://github.com/fsaris/home-assistant-awox/issues/17
 
 ## Current features
