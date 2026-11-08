@@ -134,13 +134,14 @@ class AwoxDevice(GATTToolBLEDevice):
         return self._connected
 
 class AwoxMeshLight:
-    def __init__(self, mac, mesh_name="unpaired", mesh_password="1234", mesh_id=0):
+    def __init__(self, mac, mesh_name="unpaired", mesh_password="1234", mesh_id=0, hci_device=None):
         """
         Args :
             mac: The light's MAC address as a string in the form AA:BB:CC:DD:EE:FF
             mesh_name: The mesh name as a string.
             mesh_password: The mesh password as a string.
             mesh_id: The mesh id (address)
+            hci_device: Local Bluetooth adapter to connect through (e.g. "hci1"); None = pygatt default
         """
         self.mac = mac
         self.mesh_id = mesh_id
@@ -153,7 +154,7 @@ class AwoxMeshLight:
 
         self._reconnecting = False
         self.reconnect_counter = 0
-        self.adapter = AwoxAdapter()
+        self.adapter = AwoxAdapter(hci_device=hci_device) if hci_device else AwoxAdapter()
 
         self.mesh_name = mesh_name.encode()
         self.mesh_password = mesh_password.encode()
@@ -192,7 +193,10 @@ class AwoxMeshLight:
         logger.info(f'[{self.mesh_name.decode()}][{self.mac}] Send pair message {message}')
         self.btdevice.char_write(PAIR_CHAR_UUID, message)
 
-        reply = self.btdevice.char_read_handle('1b')
+        # Resolve the pair characteristic handle instead of hardcoding 0x1b: it differs per model
+        # (EGLO connect.Z uses 0x1e) and pygatt >= 5 requires an int handle, not a hex string.
+        pair_handle = self.btdevice.get_handle(PAIR_CHAR_UUID)
+        reply = self.btdevice.char_read_handle(pair_handle)
         logger.debug(f"[{self.mesh_name.decode()}][{self.mac}] Read {reply} from characteristic {PAIR_CHAR_UUID}")
 
         if reply[0] == 0xd:
@@ -207,10 +211,12 @@ class AwoxMeshLight:
 
 
         logger.debug(f'[{self.mesh_name.decode()}][{self.mac}] Listen for notifications')
-        self.btdevice.subscribe(STATUS_CHAR_UUID, callback=self._handleNotification)
+        # Some devices (e.g. EGLO connect.Z) never acknowledge a write request on the status
+        # characteristic, so a write-req blocks until timeout; use write-cmd (no response) instead.
+        self.btdevice.subscribe(STATUS_CHAR_UUID, callback=self._handleNotification, wait_for_response=False)
 
         logger.debug(f'[{self.mesh_name.decode()}][{self.mac}] Send status message')
-        self.btdevice.char_write(STATUS_CHAR_UUID, b'\x01')
+        self.btdevice.char_write(STATUS_CHAR_UUID, b'\x01', wait_for_response=False)
 
         return True
 

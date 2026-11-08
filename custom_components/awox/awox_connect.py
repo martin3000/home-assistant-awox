@@ -68,9 +68,16 @@ class AwoxConnect:
 
         return response.json()['results']
 
-    def credentials(self):
+    def credentials(self, service: str = 'mesh'):
+        """Return the cloud credential record for the given service.
+
+        Args:
+            service: 'mesh' (classic AwoX) or 'zigbee' (EGLO connect.Z, also used for its BLE mesh).
+        Returns:
+            dict with client_id (mesh name), access_token (mesh password), refresh_token (mesh key), or None.
+        """
         try:
-            return next(d for d in self._fetch_class('Credential') if d.get('service') == 'mesh')
+            return next(d for d in self._fetch_class('Credential') if d.get('service') == service)
         except StopIteration:
             return None
 

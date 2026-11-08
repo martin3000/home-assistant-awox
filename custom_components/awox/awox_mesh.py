@@ -337,9 +337,13 @@ class AwoxMesh(DataUpdateCoordinator):
             if device_info['mac'] is None:
                 continue
 
-            device = AwoxMeshLight(device_info['mac'], self._mesh_name, self._mesh_password, mesh_id)
+            # Use the local adapter receiving the device best (from HA's bluetooth integration), so a changed
+            # adapter setup needs no configuration
+            device = AwoxMeshLight(device_info['mac'], self._mesh_name, self._mesh_password, mesh_id,
+                                   hci_device=device_info.get('adapter'))
             try:
-                _LOGGER.info("[%s][%s][%s] Trying to connect", self.mesh_name, device_info['name'], device.mac)
+                _LOGGER.info("[%s][%s][%s] Trying to connect via %s", self.mesh_name, device_info['name'], device.mac,
+                             device_info.get('adapter') or 'default adapter')
                 async with async_timeout.timeout(20):
                     if await self.hass.async_add_executor_job(device.connect):
                         self._connected_bluetooth_device = device
@@ -388,6 +392,8 @@ class AwoxMesh(DataUpdateCoordinator):
                 _LOGGER.info('[%s][%s][%s] Bluetooth scan returns RSSI value = %s', self.mesh_name, device_info['name'],
                              device_info['mac'], devices[device_info['mac'].upper()]['rssi'])
                 self._devices[mesh_id]['rssi'] = devices[device_info['mac'].upper()]['rssi']
+                # Local adapter that receives the device best (None when found via bluetoothctl fallback)
+                self._devices[mesh_id]['adapter'] = devices[device_info['mac'].upper()].get('adapter')
 
             elif device_info['mac'].upper() in devices:
                 _LOGGER.info('[%s][%s][%s] Bluetooth scan returns no RSSI value', self.mesh_name, device_info['name'], device_info['mac'])

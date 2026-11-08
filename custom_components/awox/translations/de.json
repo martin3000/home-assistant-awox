@@ -45,9 +45,10 @@
       "cannot_connect": "Verbindung oder Anmeldung nicht möglich (siehe Log)"
     },
     "abort": {
-      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]",
-      "no_devices_found": "[%key:common::config_flow::abort::no_devices_found%]",
-      "device_not_found": "Verbindung zu Gerät nicht möglich"
+      "single_instance_allowed": "Nur eine einzige Konfiguration ist erlaubt",
+      "no_devices_found": "Keine unterstützten Geräte im AwoX-Konto gefunden",
+      "device_not_found": "Verbindung zu Gerät nicht möglich",
+      "no_mesh_credentials_found": "Keine Mesh-Zugangsdaten im AwoX-Konto gefunden"
     }
   }
 }

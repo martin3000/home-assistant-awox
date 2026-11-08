@@ -45,9 +45,10 @@
       "cannot_connect": "Can not connect/login (check logs)"
     },
     "abort": {
-      "single_instance_allowed": "[%key:common::config_flow::abort::single_instance_allowed%]",
-      "no_devices_found": "[%key:common::config_flow::abort::no_devices_found%]",
-      "device_not_found": "Could not connect to device"
+      "single_instance_allowed": "Only a single configuration is allowed",
+      "no_devices_found": "No supported devices found in your AwoX account",
+      "device_not_found": "Could not connect to device",
+      "no_mesh_credentials_found": "No mesh credentials found in your AwoX account"
     }
   }
 }

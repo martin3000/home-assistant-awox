@@ -17,6 +17,15 @@ from .awox_connect import AwoxConnect
 
 _LOGGER = logging.getLogger(__name__)
 
+# Device type prefixes reported by the AwoX cloud that speak the Telink BLE mesh protocol.
+# EGLO connect.Z (Zigbee + BLE) lights report ".ble.zigbee..." but their BLE side is Telink mesh too.
+TLMESH_TYPE_PREFIX = '.ble.tlmesh'
+ZIGBEE_TYPE_PREFIX = '.ble.zigbee'
+SUPPORTED_TYPE_PREFIXES = (TLMESH_TYPE_PREFIX, ZIGBEE_TYPE_PREFIX)
+
+# Telink mesh addresses are unsigned 16 bit; the cloud stores them as signed int16 for connect.Z devices
+MESH_ID_MASK = 0xFFFF
+
 
 def create_awox_connect_object(username, password) -> AwoxConnect:
     return AwoxConnect(username, password)
@@ -154,7 +163,7 @@ class AwoxMeshFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             if 'type' not in device:
                 _LOGGER.warning('Skipped device, missing type - %s', device)
                 continue
-            if not device['type'].startswith('.ble.tlmesh'):
+            if not device['type'].startswith(SUPPORTED_TYPE_PREFIXES):
                 _LOGGER.warning('Skipped device, invalid type - %s', device['type'])
                 continue
             if 'address' not in device or not device['address']:
@@ -177,7 +186,7 @@ class AwoxMeshFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 device['hardwareVersion'] = None
 
             devices.append({
-                'mesh_id': int(device['address']),
+                'mesh_id': int(device['address']) & MESH_ID_MASK,
                 'name': device['displayName'],
                 'mac': device['macAddress'],
                 'model': device['modelName'],
@@ -190,7 +199,14 @@ class AwoxMeshFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if len(devices) == 0:
             return self.async_abort(reason="no_devices_found")
 
-        credentials = await self.hass.async_add_executor_job(awox_connect.credentials)
+        # connect.Z lights authenticate their BLE side with the 'zigbee' credential, classic AwoX with 'mesh'
+        has_zigbee = any(d['type'].startswith(ZIGBEE_TYPE_PREFIX) for d in devices)
+        has_tlmesh = any(d['type'].startswith(TLMESH_TYPE_PREFIX) for d in devices)
+        if has_zigbee and has_tlmesh:
+            _LOGGER.warning('Account contains both connect.Z and classic AwoX devices; '
+                            'using zigbee credentials, classic devices may fail to connect')
+        service = 'zigbee' if has_zigbee else 'mesh'
+        credentials = await self.hass.async_add_executor_job(awox_connect.credentials, service)
 
         if credentials is None:
             return self.async_abort(reason="no_mesh_credentials_found")

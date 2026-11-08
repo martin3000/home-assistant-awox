@@ -12,6 +12,8 @@ from .bluetoothctl import Bluetoothctl
 _LOGGER = logging.getLogger(__name__)
 
 START_MAC_ADDRESS = "A4:C1"
+# HA names local adapters "hci0", "hci1", ...; only those can be used by gatttool (not proxies)
+LOCAL_ADAPTER_PREFIX = "hci"
 
 
 class DeviceScanner:
@@ -30,7 +32,46 @@ class DeviceScanner:
         return False
 
     @staticmethod
+    def _find_devices_via_ha_bluetooth(hass: HomeAssistant) -> dict:
+        """Get AwoX devices with the best local adapter and its RSSI from HA's bluetooth integration.
+
+        Running our own bluetoothctl scan conflicts with HA's scanner on the same adapter
+        (scan commands time out), while HA already knows every advertising device per adapter.
+        gatttool can only use local adapters, so remote scanners (ESPHome proxies) are ignored and
+        for each device the local adapter receiving it best is picked. This follows adapter changes
+        (e.g. another USB stick) without configuration.
+
+        Returns:
+            dict mac -> {'mac', 'name', 'rssi', 'adapter'}; empty if the bluetooth integration is unavailable.
+        """
+        try:
+            from homeassistant.components import bluetooth
+            infos = bluetooth.async_discovered_service_info(hass, connectable=False)
+        except Exception as e:
+            _LOGGER.debug('HA bluetooth integration not usable: %s', e)
+            return {}
+
+        devices = {}
+        for info in infos:
+            mac = info.address.upper()
+            if not mac.startswith(START_MAC_ADDRESS):
+                continue
+            for scanner_device in bluetooth.async_scanner_devices_by_address(hass, info.address, connectable=False):
+                adapter = getattr(scanner_device.scanner, 'adapter', None) or ''
+                rssi = scanner_device.advertisement.rssi
+                if not adapter.startswith(LOCAL_ADAPTER_PREFIX) or rssi is None:
+                    continue
+                if mac not in devices or rssi > devices[mac]['rssi']:
+                    devices[mac] = {'mac': mac, 'name': info.name or mac, 'rssi': rssi, 'adapter': adapter}
+        return devices
+
+    @staticmethod
     async def async_find_devices(hass: HomeAssistant, scan_timeout: int = 30):
+        devices = DeviceScanner._find_devices_via_ha_bluetooth(hass)
+        if devices:
+            _LOGGER.debug('Found devices via HA bluetooth: %s', devices)
+            return devices
+
         def init():
             return Bluetoothctl()
         devices = {}
